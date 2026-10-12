@@ -54,6 +54,9 @@ OUT/
 └── manifest.json
 ```
 
+`manifest.json` also has an `images` object: `placed` images, and `skipped` counts by reason
+(`missing`, `remote`, `outside_root`, `unreadable`), summed over every section.
+
 ### As a library
 
 ```python
@@ -87,7 +90,7 @@ Package layout (`src/lemon2pdf/`):
 | `discovery.py` | page indexing and breadcrumb-based sectioning |
 | `render.py` | HTML → ReportLab flowables and batch PDFs |
 | `assemble.py` | section PDFs, linked contents pages, combined manual (PyMuPDF) |
-| `models.py` | frozen dataclasses: `Document`, `Section`, `SectionResult`, `Manifest`, `BuildOptions` |
+| `models.py` | dataclasses: `Document`, `Section`, `SectionResult`, `ImageStats`, `Manifest`, `BuildOptions` |
 | `errors.py` | exception hierarchy |
 
 ## License

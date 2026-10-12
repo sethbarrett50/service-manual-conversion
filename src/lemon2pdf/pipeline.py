@@ -12,7 +12,7 @@ from lemon2pdf.archive import GIB, find_root, safe_extract_zip, write_sections_z
 from lemon2pdf.assemble import build_section, combine_section_pdfs
 from lemon2pdf.discovery import discover, filter_sections
 from lemon2pdf.errors import ConversionError, ManualNotFoundError
-from lemon2pdf.models import BuildOptions, Manifest, SectionResult
+from lemon2pdf.models import BuildOptions, ImageStats, Manifest, SectionResult
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,20 @@ def clean_name(value: str) -> str:
 
 def _mib(path: Path) -> int:
     return path.stat().st_size // MIB
+
+
+def _log_image_summary(images: ImageStats) -> None:
+    level = logging.WARNING if images.skipped else logging.INFO
+    logger.log(
+        level,
+        "Images: %d placed, %d skipped (%d missing, %d remote, %d outside root, %d unreadable)",
+        images.placed,
+        images.skipped,
+        images.missing,
+        images.remote,
+        images.outside_root,
+        images.unreadable,
+    )
 
 
 def _resolve_source(source: Path, scratch: Path, max_uncompressed_gib: float) -> Path:
@@ -76,12 +90,15 @@ def _build(options: BuildOptions) -> Manifest:
         section_dir = out / "sections"
         section_dir.mkdir(exist_ok=True)
         results: list[SectionResult] = []
+        images = ImageStats()
         for i, section in enumerate(sections, 1):
             target = section_dir / f"{i:02}_{clean_name(section.name)}.pdf"
             logger.info(
                 "[%d/%d] %s: %d documents", i, len(sections), section.name, len(section.documents)
             )
-            pages = build_section(root, vehicle, section, target, scratch, options.batch_size)
+            pages = build_section(
+                root, vehicle, section, target, scratch, options.batch_size, images
+            )
             results.append(SectionResult(section.name, target, len(section.documents), pages))
             logger.info("    => %d PDF pages, %d MiB", pages, _mib(target))
 
@@ -99,7 +116,8 @@ def _build(options: BuildOptions) -> Manifest:
             logger.info("Packaging section PDFs...")
             write_sections_zip((r.file for r in results), sections_zip)
 
-    manifest = Manifest(vehicle, tuple(results), complete_pdf, sections_zip)
+    _log_image_summary(images)
+    manifest = Manifest(vehicle, tuple(results), complete_pdf, sections_zip, images)
     (out / MANIFEST_NAME).write_text(manifest.to_json(), encoding="utf-8")
     logger.info("Done: %s", out.resolve())
     return manifest

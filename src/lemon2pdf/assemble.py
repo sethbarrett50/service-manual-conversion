@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pymupdf
 
-from lemon2pdf.models import Document, Section
+from lemon2pdf.models import Document, ImageStats, Section
 from lemon2pdf.render import A4, render_batch
 
 logger = logging.getLogger(__name__)
@@ -92,6 +92,7 @@ def build_section(
     destination: Path,
     temp_root: Path,
     batch_size: int,
+    stats: ImageStats,
 ) -> int:
     """Render ``section`` to ``destination`` in batches; return its page count."""
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -103,7 +104,7 @@ def build_section(
         subset = docs[offset : offset + batch_size]
         part = temp_root / f"part_{part_idx:04}.pdf"
         logger.info("    batch %d: %d documents", part_idx + 1, len(subset))
-        render_batch(root, vehicle, section.name, subset, part)
+        render_batch(root, vehicle, section.name, subset, part, stats)
         batch = pymupdf.open(part)
         found = _document_start_pages(batch)
         for doc in subset:

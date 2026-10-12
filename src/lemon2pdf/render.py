@@ -25,7 +25,7 @@ from reportlab.platypus import (
     Spacer,
 )
 
-from lemon2pdf.models import Document
+from lemon2pdf.models import Document, ImageStats
 
 logger = logging.getLogger(__name__)
 
@@ -92,22 +92,31 @@ def normalize_text(text: str) -> str:
     return html.escape(" ".join(text.split()), quote=False)
 
 
-def image_flowables(tag: Tag, root: Path) -> list[Flowable]:
-    """Flowables for a local ``<img>``; remote, missing or unreadable images are skipped."""
+def image_flowables(tag: Tag, root: Path, stats: ImageStats) -> list[Flowable]:
+    """Flowables for a local ``<img>``; skipped images are counted in ``stats`` by reason."""
     src = tag.get("src")
     if not isinstance(src, str) or not src:
+        stats.missing += 1
         return []
     parsed = urlparse(src)
     if parsed.scheme or parsed.netloc:
+        stats.remote += 1
         return []
     path = (root / "pages" / unquote(parsed.path)).resolve()
-    if not path.is_relative_to(root.resolve()) or not path.is_file():
+    if not path.is_relative_to(root.resolve()):
+        stats.outside_root += 1
+        return []
+    if not path.is_file():
+        stats.missing += 1
         return []
     try:
         width, height = ImageReader(str(path)).getSize()
-    except Exception:  # ReportLab/Pillow raise many types for bad images
-        logger.warning("Skipping unreadable image %s", path, exc_info=True)
+    except Exception as exc:  # ReportLab/Pillow raise many types for bad images
+        stats.unreadable += 1
+        logger.warning("Skipping unreadable image %s: %s", path, exc)
+        logger.debug("Traceback for unreadable image %s", path, exc_info=True)
         return []
+    stats.placed += 1
     ratio = min(MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height, 1)
     return [Image(str(path), width=width * ratio, height=height * ratio), Spacer(1, 5)]
 
@@ -115,8 +124,9 @@ def image_flowables(tag: Tag, root: Path) -> list[Flowable]:
 class _FlowableBuilder:
     """Walks an HTML subtree, buffering inline text into paragraphs."""
 
-    def __init__(self, root: Path, styles: StyleSheet1) -> None:
+    def __init__(self, root: Path, styles: StyleSheet1, stats: ImageStats) -> None:
         self.root = root
+        self.stats = stats
         self.styles = styles
         self.result: list[Flowable] = []
         self._buf: list[str] = []
@@ -140,7 +150,7 @@ class _FlowableBuilder:
             self.flush()
         elif kind == "img":
             self.flush()
-            self.result.extend(image_flowables(node, self.root))
+            self.result.extend(image_flowables(node, self.root, self.stats))
         elif kind == "table":
             self.flush()
             self._table(node)
@@ -170,11 +180,13 @@ class _FlowableBuilder:
                 )
 
 
-def html_to_flowables(main: Tag, root: Path, styles: StyleSheet1) -> list[Flowable]:
+def html_to_flowables(
+    main: Tag, root: Path, styles: StyleSheet1, stats: ImageStats
+) -> list[Flowable]:
     """Convert a page's ``.main`` element into flowables. Mutates ``main``."""
     for tag in main.select("script, button, nav"):
         tag.decompose()
-    builder = _FlowableBuilder(root, styles)
+    builder = _FlowableBuilder(root, styles, stats)
     for child in main.children:
         builder.walk(child)
     builder.flush()
@@ -229,7 +241,12 @@ class TaggedDoc(BaseDocTemplate):
 
 
 def render_batch(
-    root: Path, vehicle: str, section: str, documents: Sequence[Document], path: Path
+    root: Path,
+    vehicle: str,
+    section: str,
+    documents: Sequence[Document],
+    path: Path,
+    stats: ImageStats,
 ) -> None:
     """Render ``documents`` into one PDF at ``path``, each starting on a new page."""
     styles = build_styles()
@@ -243,5 +260,5 @@ def render_batch(
         soup = BeautifulSoup((root / "pages" / f"{doc.id}.html").read_bytes(), "html.parser")
         main = soup.select_one(".main")
         if main is not None:
-            flow.extend(html_to_flowables(main, root, styles))
+            flow.extend(html_to_flowables(main, root, styles, stats))
     TaggedDoc(path, f"{vehicle} — {section}").build(flow)
