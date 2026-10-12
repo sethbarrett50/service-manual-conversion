@@ -29,6 +29,9 @@ dependencies = [
     "reportlab>=4.2,<6",
 ]
 
+[project.scripts]
+lemon2pdf = "lemon2pdf.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/sethbarrett50/service-manual-conversion"
 Repository = "https://github.com/sethbarrett50/service-manual-conversion"
@@ -39,6 +42,7 @@ dev = [
     "pytest>=8",
     "ruff>=0.15",
     "ty>=0.0.80",
+    "types-reportlab>=5.0.0.20261008",
 ]
 
 [build-system]
@@ -48,21 +52,16 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-# Original single-file script, kept for reference until the package replaces it.
-extend-exclude = ["lemon_manual_builder.py"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PTH", "LOG", "G", "PL", "ANN"]
-ignore = ["PLR0913", "PLR2004"]
+ignore = ["PLR0913", "PLR0917", "PLR2004"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ANN", "PLR"]
 
 [tool.ty.environment]
 python-version = "3.11"
-
-[tool.ty.src]
-exclude = ["lemon_manual_builder.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
