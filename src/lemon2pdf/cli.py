@@ -37,6 +37,13 @@ def _positive_int(value: str) -> int:
     return number
 
 
+def _positive_float(value: str) -> float:
+    number = float(value)
+    if not number > 0:
+        raise argparse.ArgumentTypeError("must be a positive number")
+    return number
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lemon2pdf",
@@ -58,6 +65,13 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=120,
         help="documents per temporary PDF batch (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--max-uncompressed-gib",
+        type=_positive_float,
+        default=50,
+        metavar="GIB",
+        help="refuse ZIPs that extract to more than GIB gibibytes (default: %(default)s)",
     )
     parser.add_argument(
         "--section",
@@ -96,6 +110,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             section_filters=tuple(args.section),
             complete=not args.no_complete,
             zip_sections=not args.no_zip,
+            max_uncompressed_gib=args.max_uncompressed_gib,
         )
         build(options)
     except Lemon2PdfError as exc:

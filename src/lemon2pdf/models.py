@@ -73,9 +73,12 @@ class BuildOptions:
     section_filters: tuple[str, ...] = field(default=())
     complete: bool = True
     zip_sections: bool = True
+    max_uncompressed_gib: float = 50
 
     def __post_init__(self) -> None:
         if self.batch_size < 1:
             raise ConfigurationError("batch size must be positive")
         if self.max_documents is not None and self.max_documents < 1:
             raise ConfigurationError("max documents must be positive")
+        if self.max_uncompressed_gib <= 0:
+            raise ConfigurationError("max uncompressed GiB must be positive")
