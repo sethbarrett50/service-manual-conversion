@@ -46,6 +46,32 @@ class SectionResult:
         }
 
 
+@dataclass(slots=True)
+class ImageStats:
+    """Images placed and skipped during one build; created per build and passed down."""
+
+    placed: int = 0
+    missing: int = 0
+    remote: int = 0
+    outside_root: int = 0
+    unreadable: int = 0
+
+    @property
+    def skipped(self) -> int:
+        return self.missing + self.remote + self.outside_root + self.unreadable
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "placed": self.placed,
+            "skipped": {
+                "missing": self.missing,
+                "remote": self.remote,
+                "outside_root": self.outside_root,
+                "unreadable": self.unreadable,
+            },
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class Manifest:
     """Summary of a build, written to ``manifest.json``."""
@@ -54,9 +80,14 @@ class Manifest:
     sections: tuple[SectionResult, ...] = ()
     complete_pdf: Path | None = None
     sections_zip: Path | None = None
+    images: ImageStats = field(default_factory=ImageStats)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"vehicle": self.vehicle, "sections": [s.to_dict() for s in self.sections]}
+        return {
+            "vehicle": self.vehicle,
+            "sections": [s.to_dict() for s in self.sections],
+            "images": self.images.to_dict(),
+        }
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), indent=2)

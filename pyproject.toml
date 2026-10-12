@@ -27,6 +27,7 @@ dependencies = [
     "pillow>=10,<13",
     "pymupdf>=1.24,<2",
     "reportlab>=4.2,<6",
+    "svglib>=2.3,<3",
 ]
 
 [project.scripts]
