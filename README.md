@@ -28,7 +28,7 @@ uv tool install lemon2pdf
 ```text
 lemon2pdf SOURCE [-o OUT] [--max-documents N] [--batch-size N]
                  [--section TERM ...] [--no-complete] [--no-zip]
-                 [--max-uncompressed-gib GIB] [-v | -q]
+                 [--max-uncompressed-gib GIB] [--temp-dir DIR] [-v | -q]
 ```
 
 | Option | Meaning |
@@ -41,6 +41,7 @@ lemon2pdf SOURCE [-o OUT] [--max-documents N] [--batch-size N]
 | `--no-complete` | Skip `complete_navigable_manual.pdf` |
 | `--no-zip` | Skip `sectioned_manuals.zip` |
 | `--max-uncompressed-gib GIB` | Refuse ZIPs whose members total more than GIB GiB (default 50) |
+| `--temp-dir DIR` | Where temporary files go (default: system temp); point at a large disk if it fills |
 | `-v` / `-q` | Debug output / warnings only |
 
 Output layout:

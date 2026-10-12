@@ -74,6 +74,7 @@ class BuildOptions:
     complete: bool = True
     zip_sections: bool = True
     max_uncompressed_gib: float = 50
+    temp_dir: Path | None = None
 
     def __post_init__(self) -> None:
         if self.batch_size < 1:

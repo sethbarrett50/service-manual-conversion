@@ -74,6 +74,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="refuse ZIPs that extract to more than GIB gibibytes (default: %(default)s)",
     )
     parser.add_argument(
+        "--temp-dir",
+        type=Path,
+        metavar="DIR",
+        help="directory for temporary files (default: system temp); use a large disk",
+    )
+    parser.add_argument(
         "--section",
         action="append",
         default=[],
@@ -111,6 +117,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             complete=not args.no_complete,
             zip_sections=not args.no_zip,
             max_uncompressed_gib=args.max_uncompressed_gib,
+            temp_dir=args.temp_dir,
         )
         build(options)
     except Lemon2PdfError as exc:
