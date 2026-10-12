@@ -24,6 +24,7 @@ from reportlab.platypus import (
     Paragraph,
     Spacer,
 )
+from svglib.svglib import svg2rlg
 
 from lemon2pdf.models import Document, ImageStats
 
@@ -110,15 +111,32 @@ def image_flowables(tag: Tag, root: Path, stats: ImageStats) -> list[Flowable]:
         stats.missing += 1
         return []
     try:
-        width, height = ImageReader(str(path)).getSize()
-    except Exception as exc:  # ReportLab/Pillow raise many types for bad images
+        image = _load_image(path)
+    except Exception as exc:  # ReportLab/Pillow/svglib raise many types for bad images
         stats.unreadable += 1
         logger.warning("Skipping unreadable image %s: %s", path, exc)
         logger.debug("Traceback for unreadable image %s", path, exc_info=True)
         return []
     stats.placed += 1
+    return [image, Spacer(1, 5)]
+
+
+def _load_image(path: Path) -> Flowable:
+    """Load a raster or SVG file as a flowable scaled to fit the frame."""
+    if path.suffix.lower() == ".svg":
+        drawing = svg2rlg(str(path))
+        if drawing is None:
+            raise ValueError("not a readable SVG")
+        width, height = drawing.width, drawing.height
+        if width <= 0 or height <= 0:
+            raise ValueError("SVG has no size")
+        ratio = min(MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height, 1)
+        drawing.scale(ratio, ratio)
+        drawing.width, drawing.height = width * ratio, height * ratio
+        return drawing
+    width, height = ImageReader(str(path)).getSize()
     ratio = min(MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height, 1)
-    return [Image(str(path), width=width * ratio, height=height * ratio), Spacer(1, 5)]
+    return Image(str(path), width=width * ratio, height=height * ratio)
 
 
 class _FlowableBuilder:

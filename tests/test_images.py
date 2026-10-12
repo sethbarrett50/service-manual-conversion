@@ -171,3 +171,58 @@ def test_scaling(tmp_path: Path, size: tuple[int, int], scaled: bool):
     assert image.drawWidth / image.drawHeight == pytest.approx(size[0] / size[1], rel=0.01)
     if not scaled:
         assert (image.drawWidth, image.drawHeight) == size
+
+
+PX_TO_PT = 0.75  # svglib converts user units (px) to points
+
+_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}">'
+    '<rect x="0" y="0" width="{w}" height="{h}" fill="red"/>'
+    '<circle cx="50" cy="50" r="40" fill="blue"/></svg>'
+)
+
+
+def test_svg_is_placed_as_vector(tmp_path: Path):
+    root = _manual(tmp_path, {"icon": "icons/wrench.svg"})
+    (root / "pages" / "icons").mkdir()
+    (root / "pages" / "icons" / "wrench.svg").write_text(_SVG.format(w=200, h=100))
+
+    manifest = build(BuildOptions(source=root, out=tmp_path / "out"))
+
+    assert manifest.images.placed == 1
+    assert manifest.images.skipped == 0
+    with pymupdf.open(manifest.sections[0].file) as pdf:
+        assert any(page.get_drawings() or page.get_images() for page in pdf)
+
+
+@pytest.mark.parametrize(
+    ("size", "scaled"),
+    [((4000, 100), True), ((100, 4000), True), ((200, 100), False)],
+)
+def test_svg_scaling(tmp_path: Path, size: tuple[int, int], scaled: bool):
+    root = tmp_path / "Manual"
+    (root / "pages").mkdir(parents=True)
+    (root / "pages" / "img.svg").write_text(_SVG.format(w=size[0], h=size[1]))
+
+    stats = ImageStats()
+    drawing = image_flowables(_tag("img.svg"), root, stats)[0]
+
+    assert stats.placed == 1
+    assert drawing.width <= MAX_IMAGE_WIDTH + 1e-6
+    assert drawing.height <= MAX_IMAGE_HEIGHT + 1e-6
+    assert drawing.width / drawing.height == pytest.approx(size[0] / size[1], rel=0.01)
+    if not scaled:
+        assert (drawing.width, drawing.height) == (size[0] * PX_TO_PT, size[1] * PX_TO_PT)
+
+
+def test_malformed_svg_is_unreadable(tmp_path: Path, caplog: pytest.LogCaptureFixture):
+    root = _manual(tmp_path, {"bad": "bad.svg"})
+    (root / "pages" / "bad.svg").write_text("<svg><rect")
+
+    with caplog.at_level(logging.WARNING, logger="lemon2pdf"):
+        manifest = build(BuildOptions(source=root, out=tmp_path / "out"))
+
+    assert manifest.images.placed == 0
+    assert manifest.to_dict()["images"]["skipped"]["unreadable"] == 1
+    assert len([r for r in caplog.records if "unreadable image" in r.getMessage()]) == 1
+    assert manifest.complete_pdf is not None
