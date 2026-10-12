@@ -1,6 +1,7 @@
-import contextlib
 import io
 import stat
+import sys
+import uuid
 import zipfile
 from pathlib import Path
 
@@ -141,13 +142,23 @@ def test_oversized_archive_via_cli(tmp_path: Path, capsys):
 
 @pytest.mark.parametrize("name", ["../x", "/abs/x", "C:/x", "C:\\x", "..\\x"])
 def test_hostile_member_names_stay_inside_destination(name: str, tmp_path: Path):
+    base = f"x_{uuid.uuid4().hex}"
+    member = name[:-1] + base
     archive = tmp_path / "evil.zip"
     with zipfile.ZipFile(archive, "w") as zf:
-        zf.writestr(name, "data")
+        zf.writestr(member, "data")
     sandbox = tmp_path / "sandbox"
     dest = sandbox / "dest"
     dest.mkdir(parents=True)
-    with contextlib.suppress(UnsafeArchiveError):
+    try:
         safe_extract_zip(archive, dest)
-    outside = [p for p in tmp_path.rglob("*") if p.is_file() and p != archive]
-    assert all(p.resolve().is_relative_to(dest.resolve()) for p in outside)
+    except UnsafeArchiveError:
+        assert list(dest.iterdir()) == []
+    else:
+        written = [p for p in dest.rglob("*") if p.is_file()]
+        assert len(written) == 1
+        assert written[0].resolve().is_relative_to(dest.resolve())
+    escapes = [Path("/abs") / base, sandbox / base, tmp_path.parent / base]
+    if sys.platform == "win32":
+        escapes.append(Path("C:/") / base)
+    assert [p for p in escapes if p.exists()] == []
