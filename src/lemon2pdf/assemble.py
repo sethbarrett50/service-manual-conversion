@@ -21,7 +21,7 @@ MASTER_ROWS_PER_PAGE = 42
 MASTER_TITLE_CHARS = 78
 SOURCE_SCAN_CHARS = 1500
 
-_SOURCE_RE = re.compile(r"\[source (\d+)\]")
+_SOURCE_RE = re.compile(r"\[source\s+(\d+)\]")
 
 
 def _toc_row_y(row: int) -> float:
