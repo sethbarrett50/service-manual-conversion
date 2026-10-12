@@ -79,6 +79,7 @@ def discover(root: Path, limit: int | None = None) -> list[Section]:
         soup = BeautifulSoup(page.read_bytes(), "html.parser")
         main = soup.select_one(".main")
         if main is None:
+            logger.warning("Skipping page %s: no .main content element", page.name)
             continue
         heading = main.select_one("h1")
         title = heading.get_text(" ", strip=True) if heading else f"Page {page.stem}"
