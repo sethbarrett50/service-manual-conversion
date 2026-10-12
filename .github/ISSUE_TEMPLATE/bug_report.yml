@@ -1,0 +1,43 @@
+name: Bug report
+description: Something converted wrongly, crashed, or produced a broken PDF
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+  - type: input
+    id: vehicle
+    attributes:
+      label: Vehicle export
+      description: The LEMON export name (e.g. "LEMON 2002 Buick LeSabre V6-3.8L VIN K").
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      placeholder: lemon2pdf 'LEMON ...zip' --out out --max-documents 30
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: Run with `-v` and paste the relevant part.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: lemon2pdf version
+      description: Output of `lemon2pdf --version`.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: OS and Python version
+      placeholder: Ubuntu 24.04, Python 3.12
