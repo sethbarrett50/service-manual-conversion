@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import errno
 import logging
 import re
 import tempfile
 from pathlib import Path
 
-from lemon2pdf.archive import find_root, safe_extract_zip, write_sections_zip
+from lemon2pdf.archive import GIB, find_root, safe_extract_zip, write_sections_zip
 from lemon2pdf.assemble import build_section, combine_section_pdfs
 from lemon2pdf.discovery import discover, filter_sections
-from lemon2pdf.errors import ManualNotFoundError
+from lemon2pdf.errors import ConversionError, ManualNotFoundError
 from lemon2pdf.models import BuildOptions, Manifest, SectionResult
 
 logger = logging.getLogger(__name__)
@@ -32,25 +33,40 @@ def _mib(path: Path) -> int:
     return path.stat().st_size // MIB
 
 
-def _resolve_source(source: Path, scratch: Path) -> Path:
+def _resolve_source(source: Path, scratch: Path, max_uncompressed_gib: float) -> Path:
     if source.is_file() and source.suffix.lower() == ".zip":
         logger.info("Extracting ZIP...")
         extracted = scratch / "extracted"
         extracted.mkdir()
-        safe_extract_zip(source, extracted)
+        safe_extract_zip(source, extracted, int(max_uncompressed_gib * GIB))
         return extracted
     if not source.exists():
         raise ManualNotFoundError(f"Source does not exist: {source}")
+    if not source.is_dir():
+        raise ManualNotFoundError(f"Source is neither a .zip file nor a directory: {source}")
     return source
 
 
 def build(options: BuildOptions) -> Manifest:
     """Run a full conversion and return the manifest that was written."""
+    try:
+        return _build(options)
+    except OSError as exc:
+        if exc.errno == errno.ENOSPC:
+            temp = options.temp_dir or Path(tempfile.gettempdir())
+            raise ConversionError(
+                f"Out of disk space (temporary files are in {temp}); "
+                "free space or point --temp-dir at a larger disk"
+            ) from exc
+        raise ConversionError(f"File system error: {exc}") from exc
+
+
+def _build(options: BuildOptions) -> Manifest:
     out = options.out
     out.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="lemon_build_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="lemon_build_", dir=options.temp_dir) as tmp:
         scratch = Path(tmp)
-        root = find_root(_resolve_source(options.source, scratch))
+        root = find_root(_resolve_source(options.source, scratch, options.max_uncompressed_gib))
         vehicle = root.name
         logger.info("Indexing: %s", vehicle)
         sections = filter_sections(discover(root, options.max_documents), options.section_filters)

@@ -21,6 +21,23 @@ class UnsafeArchiveError(Lemon2PdfError):
         self.member = member
 
 
+class CorruptArchiveError(Lemon2PdfError):
+    """A ZIP is damaged, truncated or otherwise cannot be read."""
+
+    def __init__(self, archive: object, reason: object) -> None:
+        super().__init__(f"Corrupt ZIP {archive}: {reason}")
+        self.archive = archive
+
+
+class ArchiveTooLargeError(Lemon2PdfError):
+    """A ZIP would extract to more than the allowed total size."""
+
+    def __init__(self, total: int, limit: int) -> None:
+        super().__init__(f"ZIP would extract to {total} bytes, above the {limit} byte limit")
+        self.total = total
+        self.limit = limit
+
+
 class ManualNotFoundError(Lemon2PdfError):
     """The source does not contain a recognizable LEMON manual."""
 
