@@ -10,15 +10,59 @@ into navigable PDFs:
 
 Conversion is reflowed from the HTML, not an exact browser print.
 
-> **Status:** early development. The original single-file script lives in
-> `lemon_manual_builder.py` while it is being turned into the `lemon2pdf` package.
-
-## Usage (script)
+## Install / run
 
 ```bash
-uv run lemon_manual_builder.py 'LEMON 2002 Buick LeSabre V6-3.8L VIN K.zip' --out buick_pdfs
-uv run lemon_manual_builder.py 'LEMON ...zip' --out test_pdfs --max-documents 30
+# run without installing (once published to PyPI)
+uvx lemon2pdf 'LEMON 2002 Buick LeSabre V6-3.8L VIN K.zip' --out buick_pdfs
+
+# from a checkout
+uvx --from . lemon2pdf --help
+
+# or install as a tool
+uv tool install lemon2pdf
 ```
+
+## Usage
+
+```text
+lemon2pdf SOURCE [-o OUT] [--max-documents N] [--batch-size N]
+                 [--section TERM ...] [--no-complete] [--no-zip] [-v | -q]
+```
+
+| Option | Meaning |
+| --- | --- |
+| `SOURCE` | LEMON ZIP export or an already-extracted vehicle directory |
+| `-o, --out` | Output directory (default `lemon_pdfs`) |
+| `--max-documents N` | Quick test run: stop after N content documents |
+| `--batch-size N` | Documents per temporary PDF batch (default 120); lower uses less memory |
+| `--section TERM` | Only build sections whose name contains TERM; repeatable |
+| `--no-complete` | Skip `complete_navigable_manual.pdf` |
+| `--no-zip` | Skip `sectioned_manuals.zip` |
+| `-v` / `-q` | Debug output / warnings only |
+
+Output layout:
+
+```text
+OUT/
+├── sections/01_<section>.pdf ...
+├── complete_navigable_manual.pdf
+├── sectioned_manuals.zip
+└── manifest.json
+```
+
+### As a library
+
+```python
+from pathlib import Path
+from lemon2pdf.models import BuildOptions
+from lemon2pdf.pipeline import build
+
+manifest = build(BuildOptions(source=Path("manual.zip"), out=Path("pdfs"), max_documents=30))
+print(manifest.to_json())
+```
+
+All errors raised deliberately derive from `lemon2pdf.errors.Lemon2PdfError`.
 
 ## Development
 
@@ -29,6 +73,19 @@ uv run ruff format --check .
 uv run ty check
 uv run pytest
 ```
+
+Package layout (`src/lemon2pdf/`):
+
+| Module | Responsibility |
+| --- | --- |
+| `cli.py` | argument parsing, logging setup, exit codes |
+| `pipeline.py` | end-to-end build orchestration |
+| `archive.py` | safe ZIP extraction, manual root detection, output ZIP |
+| `discovery.py` | page indexing and breadcrumb-based sectioning |
+| `render.py` | HTML → ReportLab flowables and batch PDFs |
+| `assemble.py` | section PDFs, linked contents pages, combined manual (PyMuPDF) |
+| `models.py` | frozen dataclasses: `Document`, `Section`, `SectionResult`, `Manifest`, `BuildOptions` |
+| `errors.py` | exception hierarchy |
 
 ## License
 
