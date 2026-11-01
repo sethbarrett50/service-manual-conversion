@@ -24,8 +24,8 @@ classifiers = [
 ]
 dependencies = [
     "beautifulsoup4>=4.12,<5",
-    "pillow>=10,<13",
-    "pymupdf>=1.24,<2",
+    "pillow>=10,<14",
+    "pymupdf>=1.24,<3",
     "reportlab>=4.2,<6",
     "svglib>=2.3,<3",
 ]
